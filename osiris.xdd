@@ -1,0 +1,1747 @@
+-- ===================== STARLIGHT UI & ICONS =====================
+local Starlight = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/starlight"))()
+local NebulaIcons = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Безопасная функция уведомлений
+local function safeNotify(data)
+    pcall(function()
+        if Starlight and typeof(Starlight.Notify) == "function" then
+            Starlight:Notify(data)
+        else
+            print("[osiris.xd] " .. tostring(data.Title) .. " - " .. tostring(data.Content))
+        end
+    end)
+end
+
+-- ===================== СОСТОЯНИЯ =====================
+local KillAura, KillAuraRadius = false, 18
+local AutoKnife, AutoEquipKnife, FaceTarget, KillAll = false, false, false, false
+local GunSilentAim, Triggerbot, AutoGrabGun, AutoKillMurderer = false, false, false, false
+local GunSmooth = 35
+
+local ESPEnabled, RainbowEnabled = false, false
+local BoxESPEnabled, TracerEnabled, HPBarEnabled = false, false, false
+local ShowName, ShowRole, ShowDistance = true, true, true
+
+-- Fling State
+local FlingEnabled = false
+local FlingConnection = nil
+
+-- Visual Aura States (Базовые 11)
+local OrbsEnabled, RingEnabled, GroundEnabled = false, false, false
+local FireEnabled, IceEnabled, BeamEnabled, PetalsEnabled = false, false, false, false
+local TornadoEnabled, DarkMatterEnabled, LightningEnabled, TrailEnabled = false, false, false, false
+local ChinaHatEnabled = false
+
+-- Extra Aura States (30 новых уникальных аур)
+local WingsEnabled, SwordsEnabled, MatrixEnabled, VoidEnabled = false, false, false, false
+local ShieldEnabled, CrystalsEnabled, HologramEnabled, BooksEnabled = false, false, false, false
+local CrownEnabled, ButterfliesEnabled, SoulsEnabled, GridEnabled = false, false, false, false
+local BubblesEnabled, CageEnabled, RadioactiveEnabled, CosmicEnabled = false, false, false, false
+local GalaxyEnabled, BloodEnabled, FeathersEnabled, RunesEnabled = false, false, false, false
+local DaggersEnabled, ShockwaveEnabled, SmokeEnabled, PrismEnabled = false, false, false, false
+local FlameWingsEnabled, IceSpikesEnabled, ToxicEnabled, ShadowsEnabled = false, false, false, false
+local StarsEnabled, SupernovaEnabled = false, false
+
+local AuraObjects = {
+    Orbs = {}, Ring = {}, Ground = {}, Fire = {}, Ice = {}, Beam = {}, Petals = {},
+    Tornado = {}, DarkMatter = {}, Lightning = {}, Trail = {}, ChinaHat = {},
+    Wings = {}, Swords = {}, Matrix = {}, Void = {}, Shield = {}, Crystals = {},
+    Hologram = {}, Books = {}, Crown = {}, Butterflies = {}, Souls = {}, Grid = {},
+    Bubbles = {}, Cage = {}, Radioactive = {}, Cosmic = {}, Galaxy = {}, Blood = {},
+    Feathers = {}, Runes = {}, Daggers = {}, Shockwave = {}, Smoke = {}, Prism = {},
+    FlameWings = {}, IceSpikes = {}, Toxic = {}, Shadows = {}, Stars = {}, Supernova = {}
+}
+
+local PlayerData = {}
+local RainbowHue = 0
+
+local Colors = {
+    Murderer = Color3.fromRGB(255, 45, 45),
+    Sheriff = Color3.fromRGB(50, 130, 255),
+    Innocent = Color3.fromRGB(50, 255, 100),
+    Dead = Color3.fromRGB(140, 140, 140),
+}
+
+local Connections = {}
+local function track(c) table.insert(Connections, c); return c end
+
+-- ===================== ОКНО =====================
+local Window = Starlight:CreateWindow({
+    Name = "osiris.xd",
+    Subtitle = "by otak15 | v8.2",
+    Icon = NebulaIcons:GetIcon('ghost', 'Lucide'),
+    LoadingEnabled = false,
+    FileSettings = { ConfigFolder = "osirisxd" },
+})
+
+Window:CreateHomeTab({
+    SupportedExecutors = {},
+    UnsupportedExecutors = {},
+    DiscordInvite = "82dPQcssb",
+    Backdrop = 0,
+    IconStyle = 1,
+    Changelog = { { Title = "osiris.xd v8.2", Date = "Today", Description = "Добавлено 30 новых уникальных аур во вкладку Visuals." } },
+})
+
+local MainSection = Window:CreateTabSection("Main", true)
+local VisualsSection = Window:CreateTabSection("Visuals")
+
+local CombatTab = MainSection:CreateTab({ Name = "Combat", Icon = NebulaIcons:GetIcon('swords', 'Lucide'), Columns = 2 }, "COMBAT_TAB")
+local FlingTab = MainSection:CreateTab({ Name = "Fling", Icon = NebulaIcons:GetIcon('wind', 'Lucide'), Columns = 1 }, "FLING_TAB")
+local TrollTab = MainSection:CreateTab({ Name = "Troll", Icon = NebulaIcons:GetIcon('smile', 'Lucide'), Columns = 1 }, "TROLL_TAB")
+local SettingsTab = MainSection:CreateTab({ Name = "Settings", Icon = NebulaIcons:GetIcon('settings', 'Lucide'), Columns = 2 }, "SETTINGS_TAB")
+local VisualsTab = VisualsSection:CreateTab({ Name = "Visuals", Icon = NebulaIcons:GetIcon('eye', 'Lucide'), Columns = 2 }, "VISUALS_TAB")
+
+-- ===================== SETTINGS =====================
+local LinksGroup = SettingsTab:CreateGroupbox({ Name = "Links", Column = 1, Icon = NebulaIcons:GetIcon('link', 'Lucide') }, "LINKS_GROUP")
+LinksGroup:CreateButton({
+    Name = "Copy Discord Link",
+    Icon = NebulaIcons:GetIcon('copy', 'Lucide'),
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://discord.gg/82dPQcssb")
+            safeNotify({ Title = "Discord", Content = "Ссылка скопирована!", Duration = 3 })
+        else
+            safeNotify({ Title = "Ошибка", Content = "Нет поддержки setclipboard", Duration = 3 })
+        end
+    end
+}, "BTN_COPY_DISCORD")
+
+-- ===================== FLING =====================
+local FlingGroup = FlingTab:CreateGroupbox({ Name = "Touch Fling", Column = 1, Icon = NebulaIcons:GetIcon('wind', 'Lucide') }, "FLING_GROUP")
+
+local function stopFling()
+    if FlingConnection then FlingConnection:Disconnect(); FlingConnection = nil end
+    local char = LocalPlayer.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local bav = hrp:FindFirstChild("FlingVelocity")
+            if bav then bav:Destroy() end
+        end
+    end
+end
+
+local function startFling()
+    stopFling()
+    FlingConnection = RunService.Heartbeat:Connect(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local bav = hrp:FindFirstChild("FlingVelocity")
+            if not bav then
+                bav = Instance.new("BodyAngularVelocity")
+                bav.Name = "FlingVelocity"
+                bav.Parent = hrp
+            end
+            bav.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bav.AngularVelocity = Vector3.new(0, 999999, 0)
+
+            for _, plr in ipairs(Players:GetPlayers()) do  
+                if plr ~= LocalPlayer and plr.Character then  
+                    local thrp = plr.Character:FindFirstChild("HumanoidRootPart")  
+                    if thrp and (hrp.Position - thrp.Position).Magnitude < 5 then  
+                        pcall(function()  
+                            firetouchinterest(hrp, thrp, 0)  
+                            firetouchinterest(hrp, thrp, 1)  
+                        end)  
+                    end  
+                end  
+            end  
+        end  
+    end)
+end
+
+FlingGroup:CreateToggle({
+    Name = "Enable Touch Fling (Spin)",
+    CurrentValue = false,
+    Callback = function(v)
+        FlingEnabled = v
+        if v then startFling() else stopFling() end
+    end,
+}, "FLING_TOGGLE")
+
+FlingGroup:CreateButton({
+    Name = "Clear Fling",
+    Icon = NebulaIcons:GetIcon('x', 'Lucide'),
+    Callback = function()
+        FlingEnabled = false
+        stopFling()
+        safeNotify({ Title = "Fling", Content = "Touch Fling отключен", Duration = 3 })
+    end
+}, "FLING_CLEAR")
+
+local PlayerListGroup = FlingTab:CreateGroupbox({ Name = "Players in Server", Column = 1, Icon = NebulaIcons:GetIcon('users', 'Lucide') }, "PLAYER_LIST_GROUP")
+
+local function flingTarget(target)
+    if not target or not target.Character then return end
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    safeNotify({ Title = "Fling", Content = "Флингим " .. target.Name .. "!", Duration = 2 })  
+      
+    for _, v in ipairs(target.Character:GetDescendants()) do  
+        if v:IsA("JointInstance") then v:Destroy() end  
+    end  
+      
+    local bv = Instance.new("BodyVelocity")  
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)  
+    bv.Velocity = Vector3.new(10000, 10000, 10000)  
+    bv.Parent = hrp  
+      
+    hrp.Velocity = Vector3.new(10000, 10000, 10000)  
+    hrp.CFrame = hrp.CFrame + Vector3.new(0, 50, 0)  
+      
+    task.wait(0.5)  
+    if bv then bv:Destroy() end
+end
+
+local function refreshFlingPlayerList()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            PlayerListGroup:CreateButton({
+                Name = "Fling: " .. plr.Name,
+                Icon = NebulaIcons:GetIcon('crosshair', 'Lucide'),
+                Callback = function()
+                    flingTarget(plr)
+                end
+            }, "FLING_BTN" .. plr.UserId)
+        end
+    end
+end
+
+refreshFlingPlayerList()
+Players.PlayerAdded:Connect(function(plr)
+    if plr ~= LocalPlayer then
+        PlayerListGroup:CreateButton({
+            Name = "Fling: " .. plr.Name,
+            Icon = NebulaIcons:GetIcon('crosshair', 'Lucide'),
+            Callback = function()
+                flingTarget(plr)
+            end
+        }, "FLING_BTN_" .. plr.UserId)
+    end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    if FlingEnabled then startFling() end
+end)
+
+-- ===================== TROLL (ANIMATION TOOL + PLAYERS) =====================
+getgenv().JERK_OFF_SPEED = getgenv().JERK_OFF_SPEED or 2
+getgenv().KEEP_ON_DEATH = getgenv().KEEP_ON_DEATH ~= false and true or false
+
+local TrollToolGroup = TrollTab:CreateGroupbox({ Name = "Custom Animation (R6 & R15)", Column = 1, Icon = NebulaIcons:GetIcon('smile', 'Lucide') }, "TROLL_TOOL_GROUP")
+
+TrollToolGroup:CreateSlider({
+    Name = "Animation Speed",
+    Range = {0.5, 10},
+    Increment = 0.5,
+    CurrentValue = getgenv().JERK_OFF_SPEED,
+    Callback = function(v)
+        getgenv().JERK_OFF_SPEED = v
+    end
+}, "JERK_SPEED")
+
+TrollToolGroup:CreateToggle({
+    Name = "Keep on Death",
+    CurrentValue = getgenv().KEEP_ON_DEATH,
+    Callback = function(v)
+        getgenv().KEEP_ON_DEATH = v
+    end
+}, "JERK_KEEP_DEATH")
+
+local function setupJerkTool()
+    if getgenv().JerkOffExecuted then
+        safeNotify({ Title = "Troll", Content = "Инструмент уже активирован!", Duration = 2 })
+        return
+    end
+
+    local Character = LocalPlayer.Character
+    if not Character or (not Character:FindFirstChild("Torso") and not Character:FindFirstChild("UpperTorso")) then
+        safeNotify({ Title = "Ошибка", Content = "Требуется персонаж (R6 или R15)!", Duration = 3 })
+        return
+    end
+
+    getgenv().JerkOffExecuted = true
+    local Humanoid = Character:WaitForChild("Humanoid", 1)
+
+    local MAIN_ANIMATIONS = {
+        JERK_OFF = "rbxassetid://99198989",
+        CLOSER_HANDS = "rbxassetid://168086975",
+    }
+
+    local JerkingOff = false
+    local JerkTool = Instance.new("Tool")
+    JerkTool.Name = "Jerk Off"
+    JerkTool.RequiresHandle = false
+    JerkTool.Parent = game:GetService("ReplicatedStorage")
+
+    LocalPlayer.CharacterAdded:Connect(function(newChar)
+        Character = newChar
+        Humanoid = Character:WaitForChild("Humanoid", 1)
+
+        if getgenv().KEEP_ON_DEATH then
+            local new_tool = JerkTool:Clone()
+            new_tool.Parent = LocalPlayer.Backpack
+            new_tool.Equipped:Connect(function() JerkingOff = true end)
+            new_tool.Unequipped:Connect(function() JerkingOff = false end)
+        end
+
+        Humanoid.Died:Connect(function()
+            JerkingOff = false
+            if not getgenv().KEEP_ON_DEATH then
+                getgenv().JerkOffExecuted = false
+            end
+        end)
+    end)
+
+    local new_tool = JerkTool:Clone()
+    new_tool.Parent = LocalPlayer.Backpack
+    new_tool.Equipped:Connect(function() JerkingOff = true end)
+    new_tool.Unequipped:Connect(function() JerkingOff = false end)
+
+    Humanoid.Died:Connect(function()
+        JerkingOff = false
+        if not getgenv().KEEP_ON_DEATH then
+            getgenv().JerkOffExecuted = false
+        end
+    end)
+
+    local jerkoffTrack, closerhandsTrack
+    local setToOriginalValues = true
+
+    track(RunService.RenderStepped:Connect(function()
+        if not Humanoid then return end
+        local currentSpeed = getgenv().JERK_OFF_SPEED or 2
+
+        if JerkingOff then
+            setToOriginalValues = true
+            Humanoid.WalkSpeed = 0
+            Humanoid.JumpPower = 0
+
+            if not jerkoffTrack then
+                local anim = Instance.new("Animation")
+                anim.AnimationId = MAIN_ANIMATIONS.JERK_OFF
+                jerkoffTrack = Humanoid:LoadAnimation(anim)
+                jerkoffTrack.Looped = true
+                jerkoffTrack:Play()
+                jerkoffTrack:AdjustSpeed(currentSpeed)
+            else
+                jerkoffTrack:AdjustSpeed(currentSpeed)
+            end
+
+            if not closerhandsTrack then
+                local anim = Instance.new("Animation")
+                anim.AnimationId = MAIN_ANIMATIONS.CLOSER_HANDS
+                closerhandsTrack = Humanoid:LoadAnimation(anim)
+                closerhandsTrack:Play()
+                closerhandsTrack:AdjustSpeed(currentSpeed)
+            else
+                closerhandsTrack:AdjustSpeed(currentSpeed)
+            end
+        elseif setToOriginalValues then
+            setToOriginalValues = false
+            Humanoid.WalkSpeed = 16
+            Humanoid.JumpPower = 50
+            if jerkoffTrack then jerkoffTrack:Stop(); jerkoffTrack = nil end
+            if closerhandsTrack then closerhandsTrack:Stop(); closerhandsTrack = nil end
+        end
+    end))
+
+    safeNotify({ Title = "Troll", Content = "Инструмент добавлен в инвентарь!", Duration = 3 })
+end
+
+TrollToolGroup:CreateButton({
+    Name = "Get Animation Tool",
+    Icon = NebulaIcons:GetIcon('sparkles', 'Lucide'),
+    Callback = function()
+        setupJerkTool()
+    end
+}, "BTN_GIVE_JERK")
+
+-- Функции троллинга игроков
+local function ragdollTarget(target)
+    if not target or not target.Character then return end
+    for _, v in ipairs(target.Character:GetDescendants()) do
+        if v:IsA("JointInstance") then v:Destroy() end
+    end
+    safeNotify({ Title = "Troll", Content = target.Name .. " теперь тряпка!", Duration = 2 })
+end
+
+local function spinTarget(target)
+    if not target or not target.Character then return end
+    local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local bav = Instance.new("BodyAngularVelocity")
+    bav.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bav.AngularVelocity = Vector3.new(0, 99999, 0)
+    bav.Parent = hrp
+    safeNotify({ Title = "Troll", Content = target.Name .. " улетел в спин!", Duration = 2 })
+    task.wait(3)
+    if bav then bav:Destroy() end
+end
+
+local function tripTarget(target)
+    if not target or not target.Character then return end
+    local hum = target.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    hum.HipHeight = -5
+    safeNotify({ Title = "Troll", Content = target.Name .. " провалился!", Duration = 2 })
+end
+
+local function danceTarget(target)
+    if not target or not target.Character then return end
+    local hum = target.Character:FindFirstChildOfClass("Humanoid")
+    local animate = target.Character:FindFirstChild("Animate")
+    if not hum or not animate then return end
+
+    local dance = animate:FindFirstChild("dance")  
+    if dance then  
+        local danceAnim = dance:FindFirstChildOfClass("Animation")  
+        if danceAnim then  
+            local track = hum:LoadAnimation(danceAnim)  
+            track:Play()  
+            safeNotify({ Title = "Troll", Content = target.Name .. " танцует!", Duration = 2 })  
+        end  
+    end
+end
+
+-- Список игроков для троллинга
+local TrollPlayerList = TrollTab:CreateGroupbox({ Name = "Players in Server", Column = 1, Icon = NebulaIcons:GetIcon('users', 'Lucide') }, "TROLL_PLAYER_LIST")
+
+local function refreshTrollPlayerList()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            TrollPlayerList:CreateButton({
+                Name = "Ragdoll: " .. plr.Name,
+                Icon = NebulaIcons:GetIcon('activity', 'Lucide'),
+                Callback = function() ragdollTarget(plr) end
+            }, "TROLL_RAG" .. plr.UserId)
+
+            TrollPlayerList:CreateButton({  
+                Name = "Spin: " .. plr.Name,  
+                Icon = NebulaIcons:GetIcon('refresh-cw', 'Lucide'),  
+                Callback = function() spinTarget(plr) end  
+            }, "TROLL_SPIN_" .. plr.UserId)  
+              
+            TrollPlayerList:CreateButton({  
+                Name = "Trip: " .. plr.Name,  
+                Icon = NebulaIcons:GetIcon('arrow-down', 'Lucide'),  
+                Callback = function() tripTarget(plr) end  
+            }, "TROLL_TRIP_" .. plr.UserId)  
+
+            TrollPlayerList:CreateButton({  
+                Name = "Dance: " .. plr.Name,  
+                Icon = NebulaIcons:GetIcon('music', 'Lucide'),  
+                Callback = function() danceTarget(plr) end  
+            }, "TROLL_DANCE_" .. plr.UserId)  
+        end  
+    end
+end
+
+refreshTrollPlayerList()
+Players.PlayerAdded:Connect(function(plr)
+    if plr ~= LocalPlayer then
+        TrollPlayerList:CreateButton({
+            Name = "Ragdoll: " .. plr.Name,
+            Icon = NebulaIcons:GetIcon('activity', 'Lucide'),
+            Callback = function() ragdollTarget(plr) end
+        }, "TROLL_RAG_" .. plr.UserId)
+
+        TrollPlayerList:CreateButton({  
+            Name = "Spin: " .. plr.Name,  
+            Icon = NebulaIcons:GetIcon('refresh-cw', 'Lucide'),  
+            Callback = function() spinTarget(plr) end  
+        }, "TROLL_SPIN_" .. plr.UserId)  
+          
+        TrollPlayerList:CreateButton({  
+            Name = "Trip: " .. plr.Name,  
+            Icon = NebulaIcons:GetIcon('arrow-down', 'Lucide'),  
+            Callback = function() tripTarget(plr) end  
+        }, "TROLL_TRIP_" .. plr.UserId)  
+
+        TrollPlayerList:CreateButton({  
+            Name = "Dance: " .. plr.Name,  
+            Icon = NebulaIcons:GetIcon('music', 'Lucide'),  
+            Callback = function() danceTarget(plr) end  
+        }, "TROLL_DANCE_" .. plr.UserId)  
+    end
+end)
+
+-- ===================== ESP =====================
+local EspGroup = VisualsTab:CreateGroupbox({ Name = "ESP", Column = 1, Icon = NebulaIcons:GetIcon('eye', 'Lucide') }, "ESP_GROUP")
+EspGroup:CreateToggle({
+    Name = "Enable ESP", CurrentValue = false,
+    Callback = function(v)
+        ESPEnabled = v
+        if not v then
+            for plr, d in pairs(PlayerData) do
+                pcall(function()
+                    if d.highlight then d.highlight:Destroy() end
+                    if d.billboard then d.billboard:Destroy() end
+                    for _, k in ipairs({"boxTop","boxBottom","boxLeft","boxRight","tracer"}) do
+                        if d[k] then d[k]:Remove() end
+                    end
+                end)
+                PlayerData[plr] = nil
+            end
+        end
+    end,
+}, "ESP_ENABLE")
+EspGroup:CreateToggle({ Name = "Rainbow ESP", CurrentValue = false, Callback = function(v) RainbowEnabled = v end }, "ESP_RAINBOW")
+
+local StyleGroup = VisualsTab:CreateGroupbox({ Name = "ESP — Стиль", Column = 2, Icon = NebulaIcons:GetIcon('palette', 'Lucide') }, "STYLE_GROUP")
+StyleGroup:CreateToggle({ Name = "Box ESP", CurrentValue = false, Callback = function(v) BoxESPEnabled = v end }, "ESP_BOX")
+StyleGroup:CreateToggle({ Name = "Tracer", CurrentValue = false, Callback = function(v) TracerEnabled = v end }, "ESP_TRACER")
+StyleGroup:CreateToggle({ Name = "Health Bar", CurrentValue = false, Callback = function(v) HPBarEnabled = v end }, "ESP_HP")
+
+local LabelGroup = VisualsTab:CreateGroupbox({ Name = "ESP — Подпись", Column = 1, Icon = NebulaIcons:GetIcon('tag', 'Lucide') }, "LABEL_GROUP")
+LabelGroup:CreateToggle({ Name = "Show Name", CurrentValue = true, Callback = function(v) ShowName = v end }, "ESP_NAME")
+LabelGroup:CreateToggle({ Name = "Show Role", CurrentValue = true, Callback = function(v) ShowRole = v end }, "ESP_ROLE")
+LabelGroup:CreateToggle({ Name = "Show Distance", CurrentValue = true, Callback = function(v) ShowDistance = v end }, "ESP_DIST")
+
+local WorldGroup = VisualsTab:CreateGroupbox({ Name = "World", Column = 2, Icon = NebulaIcons:GetIcon('globe', 'Lucide') }, "WORLD_GROUP")
+WorldGroup:CreateButton({ Name = "Day", Icon = NebulaIcons:GetIcon('sun', 'Lucide'), Callback = function() Lighting.ClockTime = 14; Lighting.Brightness = 2; Lighting.FogEnd = 100000 end }, "WORLD_DAY")
+WorldGroup:CreateButton({ Name = "Night", Icon = NebulaIcons:GetIcon('moon', 'Lucide'), Callback = function() Lighting.ClockTime = 0; Lighting.Brightness = 0.25 end }, "WORLD_NIGHT")
+WorldGroup:CreateSlider({ Name = "Brightness", Range = {0, 5}, Increment = 0.1, CurrentValue = 2, Callback = function(v) Lighting.Brightness = v end }, "WORLD_BRIGHT")
+
+-- ===================== ACCESSORIES =====================
+local AccessoryGroup = VisualsTab:CreateGroupbox({ Name = "Accessories", Column = 1, Icon = NebulaIcons:GetIcon('glasses', 'Lucide') }, "ACCESSORY_GROUP")
+
+local function clearAuraType(type)
+    if AuraObjects[type] then
+        for _, obj in ipairs(AuraObjects[type]) do
+            if obj and obj.Parent then obj:Destroy() end
+        end
+        AuraObjects[type] = {}
+    end
+end
+
+local function createChinaHat()
+    clearAuraType("ChinaHat")
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hat = Instance.new("Part")  
+    hat.Name = "ChinaHat"  
+    hat.Size = Vector3.new(3, 3, 3)   
+    hat.Material = Enum.Material.SmoothPlastic  
+    hat.Color = Color3.fromRGB(255, 180, 0)  
+    hat.Anchored = true  
+    hat.CanCollide = false  
+    hat.CanQuery = false  
+    hat.Transparency = 0  
+    hat.Parent = workspace  
+
+    local mesh = Instance.new("SpecialMesh", hat)  
+    mesh.MeshType = Enum.MeshType.FileMesh  
+    mesh.MeshId = "rbxassetid://1033714"   
+    mesh.Scale = Vector3.new(1.5, 1.5, 1.5)  
+
+    table.insert(AuraObjects.ChinaHat, hat)
+end
+
+AccessoryGroup:CreateToggle({
+    Name = "China Hat",
+    CurrentValue = false,
+    Callback = function(v)
+        ChinaHatEnabled = v
+        if v then createChinaHat() else clearAuraType("ChinaHat") end
+    end,
+}, "ACC_CHINA")
+
+-- ===================== VISUAL AURA (Базовые) =====================
+local VisualAuraGroup = VisualsTab:CreateGroupbox({ Name = "Visual Aura", Column = 1, Icon = NebulaIcons:GetIcon('sparkles', 'Lucide') }, "VISUAL_AURA_GROUP")
+
+local function createOrbitOrbs()
+    clearAuraType("Orbs")
+    for i = 1, 5 do
+        local orb = Instance.new("Part")
+        orb.Shape = Enum.PartType.Ball
+        orb.Size = Vector3.new(0.8, 0.8, 0.8)
+        orb.Material = Enum.Material.Neon
+        orb.Anchored = true; orb.CanCollide = false; orb.Parent = workspace
+        local light = Instance.new("PointLight", orb); light.Range = 6; light.Brightness = 2
+        table.insert(AuraObjects.Orbs, orb)
+    end
+end
+
+local function createHaloRing()
+    clearAuraType("Ring")
+    for i = 1, 12 do
+        local part = Instance.new("Part")
+        part.Shape = Enum.PartType.Ball
+        part.Size = Vector3.new(0.4, 0.4, 0.4)
+        part.Material = Enum.Material.Neon
+        part.Anchored = true; part.CanCollide = false; part.Parent = workspace
+        table.insert(AuraObjects.Ring, part)
+    end
+end
+
+local function createGroundAura()
+    clearAuraType("Ground")
+    local disk = Instance.new("Part")
+    disk.Shape = Enum.PartType.Cylinder; disk.Size = Vector3.new(0.2, 8, 8)
+    disk.Material = Enum.Material.Neon; disk.Transparency = 0.5
+    disk.Anchored = true; disk.CanCollide = false; disk.Parent = workspace
+    table.insert(AuraObjects.Ground, disk)
+    local emitter = Instance.new("ParticleEmitter", disk)
+    emitter.Texture = "rbxassetid://243660364"; emitter.Color = ColorSequence.new(Color3.fromRGB(0, 255, 255))
+    emitter.Rate = 20; emitter.Speed = NumberRange.new(1, 3); emitter.EmissionDirection = Enum.NormalId.Top
+end
+
+local function createFireAura()
+    clearAuraType("Fire")
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local attach = Instance.new("Attachment", root)
+    local emitter = Instance.new("ParticleEmitter", attach)
+    emitter.Texture = "rbxassetid://243660364"; emitter.Color = ColorSequence.new(Color3.fromRGB(255, 100, 0), Color3.fromRGB(255, 0, 0))
+    emitter.Size = NumberSequence.new(2, 4); emitter.Rate = 100; emitter.EmissionDirection = Enum.NormalId.Top
+    table.insert(AuraObjects.Fire, attach)
+end
+
+local function createIceAura()
+    clearAuraType("Ice")
+    for i = 1, 6 do
+        local shard = Instance.new("Part")
+        shard.Shape = Enum.PartType.Block; shard.Size = Vector3.new(0.2, 2, 0.2)
+        shard.Material = Enum.Material.Neon; shard.Color = Color3.fromRGB(150, 240, 255)
+        shard.Anchored = true; shard.CanCollide = false; shard.Parent = workspace
+        table.insert(AuraObjects.Ice, shard)
+    end
+end
+
+local function createBeamAura()
+    clearAuraType("Beam")
+    local beam = Instance.new("Part")
+    beam.Shape = Enum.PartType.Cylinder; beam.Size = Vector3.new(60, 2, 2)
+    beam.Material = Enum.Material.Neon; beam.Color = Color3.fromRGB(100, 200, 255)
+    beam.Transparency = 0.5; beam.Anchored = true; beam.CanCollide = false; beam.Parent = workspace
+    table.insert(AuraObjects.Beam, beam)
+end
+
+local function createPetalsAura()
+    clearAuraType("Petals")
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local attach = Instance.new("Attachment", root)
+    local emitter = Instance.new("ParticleEmitter", attach)
+    emitter.Texture = "rbxassetid://243660364"; emitter.Color = ColorSequence.new(Color3.fromRGB(255, 105, 180))
+    emitter.Size = NumberSequence.new(0.5, 1.5); emitter.Rate = 40
+    emitter.SpreadAngle = Vector2.new(180, 180); emitter.Acceleration = Vector3.new(0, -2, 0)
+    table.insert(AuraObjects.Petals, attach)
+end
+
+local function createTornadoAura()
+    clearAuraType("Tornado")
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(1, 10, 1); part.Transparency = 1
+    part.Anchored = true; part.CanCollide = false; part.Parent = workspace
+    local emitter = Instance.new("ParticleEmitter", part)
+    emitter.Texture = "rbxassetid://243660364"; emitter.Color = ColorSequence.new(Color3.fromRGB(200, 200, 200))
+    emitter.Size = NumberSequence.new(1, 3); emitter.Rate = 100; emitter.Speed = NumberRange.new(10, 20)
+    emitter.SpreadAngle = Vector2.new(10, 10); emitter.RotSpeed = NumberRange.new(360, 720)
+    table.insert(AuraObjects.Tornado, part)
+end
+
+local function createDarkMatter()
+    clearAuraType("DarkMatter")
+    for i = 1, 6 do
+        local orb = Instance.new("Part")
+        orb.Shape = Enum.PartType.Ball; orb.Size = Vector3.new(0.7, 0.7, 0.7)
+        orb.Material = Enum.Material.Neon; orb.Color = Color3.fromRGB(75, 0, 130)
+        orb.Anchored = true; orb.CanCollide = false; orb.Parent = workspace
+        local light = Instance.new("PointLight", orb); light.Color = Color3.fromRGB(150, 0, 255); light.Range = 4; light.Brightness = 2
+        table.insert(AuraObjects.DarkMatter, orb)
+    end
+end
+
+local function createLightningAura()
+    clearAuraType("Lightning")
+    for i = 1, 3 do
+        local spark = Instance.new("Part")
+        spark.Shape = Enum.PartType.Ball; spark.Size = Vector3.new(0.5, 0.5, 0.5)
+        spark.Material = Enum.Material.Neon; spark.Color = Color3.fromRGB(255, 255, 0)
+        spark.Anchored = true; spark.CanCollide = false; spark.Parent = workspace
+        table.insert(AuraObjects.Lightning, spark)
+    end
+end
+
+local function createRainbowTrail()
+    clearAuraType("Trail")
+    local char = LocalPlayer.Character
+    if not char then return end
+    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    if not torso then return end
+
+    local att1 = Instance.new("Attachment", torso); att1.Position = Vector3.new(0, 1, 1)  
+    local att2 = Instance.new("Attachment", torso); att2.Position = Vector3.new(0, -1, 1)  
+    local trail = Instance.new("Trail", torso)  
+    trail.Attachment0 = att1; trail.Attachment1 = att2  
+    trail.Lifetime = 1  
+    trail.Color = ColorSequence.new{  
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),  
+        ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 255, 0)),  
+        ColorSequenceKeypoint.new(0.4, Color3.fromRGB(0, 255, 0)),  
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(0, 255, 255)),  
+        ColorSequenceKeypoint.new(0.8, Color3.fromRGB(0, 0, 255)),  
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))  
+    }  
+    table.insert(AuraObjects.Trail, att1); table.insert(AuraObjects.Trail, att2); table.insert(AuraObjects.Trail, trail)
+end
+
+VisualAuraGroup:CreateToggle({ Name = "Orbit Orbs", CurrentValue = false, Callback = function(v) OrbsEnabled = v; if v then createOrbitOrbs() else clearAuraType("Orbs") end end }, "AURA_ORBS")
+VisualAuraGroup:CreateToggle({ Name = "Halo Ring", CurrentValue = false, Callback = function(v) RingEnabled = v; if v then createHaloRing() else clearAuraType("Ring") end end }, "AURA_RING")
+VisualAuraGroup:CreateToggle({ Name = "Ground Aura", CurrentValue = false, Callback = function(v) GroundEnabled = v; if v then createGroundAura() else clearAuraType("Ground") end end }, "AURA_GROUND")
+VisualAuraGroup:CreateToggle({ Name = "Fire Aura", CurrentValue = false, Callback = function(v) FireEnabled = v; if v then createFireAura() else clearAuraType("Fire") end end }, "AURA_FIRE")
+VisualAuraGroup:CreateToggle({ Name = "Ice Shards", CurrentValue = false, Callback = function(v) IceEnabled = v; if v then createIceAura() else clearAuraType("Ice") end end }, "AURA_ICE")
+VisualAuraGroup:CreateToggle({ Name = "Energy Beam", CurrentValue = false, Callback = function(v) BeamEnabled = v; if v then createBeamAura() else clearAuraType("Beam") end end }, "AURA_BEAM")
+VisualAuraGroup:CreateToggle({ Name = "Petal Storm", CurrentValue = false, Callback = function(v) PetalsEnabled = v; if v then createPetalsAura() else clearAuraType("Petals") end end }, "AURA_PETALS")
+VisualAuraGroup:CreateToggle({ Name = "Tornado", CurrentValue = false, Callback = function(v) TornadoEnabled = v; if v then createTornadoAura() else clearAuraType("Tornado") end end }, "AURA_TORNADO")
+VisualAuraGroup:CreateToggle({ Name = "Dark Matter", CurrentValue = false, Callback = function(v) DarkMatterEnabled = v; if v then createDarkMatter() else clearAuraType("DarkMatter") end end }, "AURA_DARK")
+VisualAuraGroup:CreateToggle({ Name = "Lightning", CurrentValue = false, Callback = function(v) LightningEnabled = v; if v then createLightningAura() else clearAuraType("Lightning") end end }, "AURA_LIGHTNING")
+VisualAuraGroup:CreateToggle({ Name = "Rainbow Trail", CurrentValue = false, Callback = function(v) TrailEnabled = v; if v then createRainbowTrail() else clearAuraType("Trail") end end }, "AURA_TRAIL")
+
+
+-- ===================== EXTRA AURAS (30 Уникальных аур) =====================
+local ExtraAuraGroup = VisualsTab:CreateGroupbox({ Name = "Extra Auras (30 Unique)", Column = 2, Icon = NebulaIcons:GetIcon('star', 'Lucide') }, "EXTRA_AURA_GROUP")
+
+local function createWings()
+    clearAuraType("Wings")
+    for i = 1, 8 do
+        local wingPart = Instance.new("Part")
+        wingPart.Size = Vector3.new(0.3, 1.5, 0.3)
+        wingPart.Material = Enum.Material.Neon
+        wingPart.Color = Color3.fromRGB(255, 215, 0)
+        wingPart.Anchored = true; wingPart.CanCollide = false; wingPart.Parent = workspace
+        table.insert(AuraObjects.Wings, wingPart)
+    end
+end
+
+local function createSwords()
+    clearAuraType("Swords")
+    for i = 1, 4 do
+        local sword = Instance.new("Part")
+        sword.Size = Vector3.new(0.4, 3, 0.8)
+        sword.Material = Enum.Material.Glass
+        sword.Color = Color3.fromRGB(0, 220, 255)
+        sword.Anchored = true; sword.CanCollide = false; sword.Parent = workspace
+        table.insert(AuraObjects.Swords, sword)
+    end
+end
+
+local function createMatrix()
+    clearAuraType("Matrix")
+    for i = 1, 10 do
+        local block = Instance.new("Part")
+        block.Size = Vector3.new(0.5, 0.5, 0.5)
+        block.Material = Enum.Material.Neon
+        block.Color = Color3.fromRGB(0, 255, 50)
+        block.Anchored = true; block.CanCollide = false; block.Parent = workspace
+        table.insert(AuraObjects.Matrix, block)
+    end
+end
+
+local function createVoid()
+    clearAuraType("Void")
+    local voidPart = Instance.new("Part")
+    voidPart.Shape = Enum.PartType.Ball
+    voidPart.Size = Vector3.new(5, 5, 5)
+    voidPart.Material = Enum.Material.Neon
+    voidPart.Color = Color3.fromRGB(40, 0, 80)
+    voidPart.Transparency = 0.6
+    voidPart.Anchored = true; voidPart.CanCollide = false; voidPart.Parent = workspace
+    table.insert(AuraObjects.Void, voidPart)
+end
+
+local function createShield()
+    clearAuraType("Shield")
+    local shield = Instance.new("Part")
+    shield.Shape = Enum.PartType.Ball
+    shield.Size = Vector3.new(6, 6, 6)
+    shield.Material = Enum.Material.Glass
+    shield.Color = Color3.fromRGB(0, 150, 255)
+    shield.Transparency = 0.7
+    shield.Anchored = true; shield.CanCollide = false; shield.Parent = workspace
+    table.insert(AuraObjects.Shield, shield)
+end
+
+local function createCrystals()
+    clearAuraType("Crystals")
+    for i = 1, 6 do
+        local cry = Instance.new("Part")
+        cry.Size = Vector3.new(0.6, 1.2, 0.6)
+        cry.Material = Enum.Material.Neon
+        cry.Color = Color3.fromRGB(255, 50, 200)
+        cry.Anchored = true; cry.CanCollide = false; cry.Parent = workspace
+        table.insert(AuraObjects.Crystals, cry)
+    end
+end
+
+local function createHologram()
+    clearAuraType("Hologram")
+    local holo = Instance.new("Part")
+    holo.Shape = Enum.PartType.Cylinder
+    holo.Size = Vector3.new(0.1, 7, 7)
+    holo.Material = Enum.Material.Neon
+    holo.Color = Color3.fromRGB(0, 255, 255)
+    holo.Transparency = 0.5
+    holo.Anchored = true; holo.CanCollide = false; holo.Parent = workspace
+    table.insert(AuraObjects.Hologram, holo)
+end
+
+local function createBooks()
+    clearAuraType("Books")
+    for i = 1, 3 do
+        local book = Instance.new("Part")
+        book.Size = Vector3.new(1, 0.3, 0.8)
+        book.Material = Enum.Material.Wood
+        book.Color = Color3.fromRGB(150, 50, 50)
+        book.Anchored = true; book.CanCollide = false; book.Parent = workspace
+        table.insert(AuraObjects.Books, book)
+    end
+end
+
+local function createCrown()
+    clearAuraType("Crown")
+    local crown = Instance.new("Part")
+    crown.Size = Vector3.new(1.8, 0.6, 1.8)
+    crown.Material = Enum.Material.Neon
+    crown.Color = Color3.fromRGB(255, 220, 0)
+    crown.Anchored = true; crown.CanCollide = false; crown.Parent = workspace
+    table.insert(AuraObjects.Crown, crown)
+end
+
+local function createButterflies()
+    clearAuraType("Butterflies")
+    for i = 1, 5 do
+        local b = Instance.new("Part")
+        b.Size = Vector3.new(0.6, 0.1, 0.6)
+        b.Material = Enum.Material.Neon
+        b.Color = Color3.fromRGB(255, 100, 255)
+        b.Anchored = true; b.CanCollide = false; b.Parent = workspace
+        table.insert(AuraObjects.Butterflies, b)
+    end
+end
+
+local function createSouls()
+    clearAuraType("Souls")
+    for i = 1, 5 do
+        local s = Instance.new("Part")
+        s.Shape = Enum.PartType.Ball
+        s.Size = Vector3.new(0.6, 0.6, 0.6)
+        s.Material = Enum.Material.Neon
+        s.Color = Color3.fromRGB(0, 255, 150)
+        s.Anchored = true; s.CanCollide = false; s.Parent = workspace
+        table.insert(AuraObjects.Souls, s)
+    end
+end
+
+local function createGrid()
+    clearAuraType("Grid")
+    local g = Instance.new("Part")
+    g.Size = Vector3.new(10, 0.1, 10)
+    g.Material = Enum.Material.Neon
+    g.Color = Color3.fromRGB(0, 100, 255)
+    g.Transparency = 0.6
+    g.Anchored = true; g.CanCollide = false; g.Parent = workspace
+    table.insert(AuraObjects.Grid, g)
+end
+
+local function createBubbles()
+    clearAuraType("Bubbles")
+    for i = 1, 8 do
+        local bub = Instance.new("Part")
+        bub.Shape = Enum.PartType.Ball
+        bub.Size = Vector3.new(0.8, 0.8, 0.8)
+        bub.Material = Enum.Material.Glass
+        bub.Color = Color3.fromRGB(200, 230, 255)
+        bub.Transparency = 0.4
+        bub.Anchored = true; bub.CanCollide = false; bub.Parent = workspace
+        table.insert(AuraObjects.Bubbles, bub)
+    end
+end
+
+local function createCage()
+    clearAuraType("Cage")
+    for i = 1, 6 do
+        local bar = Instance.new("Part")
+        bar.Size = Vector3.new(0.2, 6, 0.2)
+        bar.Material = Enum.Material.Neon
+        bar.Color = Color3.fromRGB(255, 0, 0)
+        bar.Anchored = true; bar.CanCollide = false; bar.Parent = workspace
+        table.insert(AuraObjects.Cage, bar)
+    end
+end
+
+local function createRadioactive()
+    clearAuraType("Radioactive")
+    for i = 1, 4 do
+        local rad = Instance.new("Part")
+        rad.Shape = Enum.PartType.Cylinder
+        rad.Size = Vector3.new(0.2, 3, 3)
+        rad.Material = Enum.Material.Neon
+        rad.Color = Color3.fromRGB(50, 255, 0)
+        rad.Transparency = 0.5
+        rad.Anchored = true; rad.CanCollide = false; rad.Parent = workspace
+        table.insert(AuraObjects.Radioactive, rad)
+    end
+end
+
+local function createCosmic()
+    clearAuraType("Cosmic")
+    for i = 1, 15 do
+        local star = Instance.new("Part")
+        star.Shape = Enum.PartType.Ball
+        star.Size = Vector3.new(0.3, 0.3, 0.3)
+        star.Material = Enum.Material.Neon
+        star.Color = Color3.fromRGB(255, 255, 255)
+        star.Anchored = true; star.CanCollide = false; star.Parent = workspace
+        table.insert(AuraObjects.Cosmic, star)
+    end
+end
+
+local function createGalaxy()
+    clearAuraType("Galaxy")
+    for i = 1, 10 do
+        local gal = Instance.new("Part")
+        gal.Size = Vector3.new(0.8, 0.2, 0.8)
+        gal.Material = Enum.Material.Neon
+        gal.Color = Color3.fromRGB(138, 43, 226)
+        gal.Anchored = true; gal.CanCollide = false; gal.Parent = workspace
+        table.insert(AuraObjects.Galaxy, gal)
+    end
+end
+
+local function createBlood()
+    clearAuraType("Blood")
+    for i = 1, 6 do
+        local bl = Instance.new("Part")
+        bl.Shape = Enum.PartType.Ball
+        bl.Size = Vector3.new(0.5, 0.5, 0.5)
+        bl.Material = Enum.Material.Neon
+        bl.Color = Color3.fromRGB(200, 0, 0)
+        bl.Anchored = true; bl.CanCollide = false; bl.Parent = workspace
+        table.insert(AuraObjects.Blood, bl)
+    end
+end
+
+local function createFeathers()
+    clearAuraType("Feathers")
+    for i = 1, 8 do
+        local f = Instance.new("Part")
+        f.Size = Vector3.new(0.3, 0.8, 0.1)
+        f.Material = Enum.Material.SmoothPlastic
+        f.Color = Color3.fromRGB(240, 240, 240)
+        f.Anchored = true; f.CanCollide = false; f.Parent = workspace
+        table.insert(AuraObjects.Feathers, f)
+    end
+end
+
+local function createRunes()
+    clearAuraType("Runes")
+    for i = 1, 4 do
+        local r = Instance.new("Part")
+        r.Size = Vector3.new(1.5, 0.1, 1.5)
+        r.Material = Enum.Material.Neon
+        r.Color = Color3.fromRGB(255, 140, 0)
+        r.Anchored = true; r.CanCollide = false; r.Parent = workspace
+        table.insert(AuraObjects.Runes, r)
+    end
+end
+
+local function createDaggers()
+    clearAuraType("Daggers")
+    for i = 1, 6 do
+        local dag = Instance.new("Part")
+        dag.Size = Vector3.new(0.3, 2, 0.5)
+        dag.Material = Enum.Material.Metal
+        dag.Color = Color3.fromRGB(180, 180, 180)
+        dag.Anchored = true; dag.CanCollide = false; dag.Parent = workspace
+        table.insert(AuraObjects.Daggers, dag)
+    end
+end
+
+local function createShockwave()
+    clearAuraType("Shockwave")
+    for i = 1, 3 do
+        local sw = Instance.new("Part")
+        sw.Shape = Enum.PartType.Cylinder
+        sw.Size = Vector3.new(0.1, 4 + i*2, 4 + i*2)
+        sw.Material = Enum.Material.Neon
+        sw.Color = Color3.fromRGB(0, 255, 255)
+        sw.Transparency = 0.5
+        sw.Anchored = true; sw.CanCollide = false; sw.Parent = workspace
+        table.insert(AuraObjects.Shockwave, sw)
+    end
+end
+
+local function createSmoke()
+    clearAuraType("Smoke")
+    for i = 1, 8 do
+        local sm = Instance.new("Part")
+        sm.Shape = Enum.PartType.Ball
+        sm.Size = Vector3.new(1.2, 1.2, 1.2)
+        sm.Material = Enum.Material.Slate
+        sm.Color = Color3.fromRGB(100, 100, 100)
+        sm.Transparency = 0.5
+        sm.Anchored = true; sm.CanCollide = false; sm.Parent = workspace
+        table.insert(AuraObjects.Smoke, sm)
+    end
+end
+
+local function createPrism()
+    clearAuraType("Prism")
+    for i = 1, 5 do
+        local pr = Instance.new("Part")
+        pr.Size = Vector3.new(1, 1, 1)
+        pr.Material = Enum.Material.Glass
+        pr.Color = Color3.fromRGB(255, 255, 255)
+        pr.Anchored = true; pr.CanCollide = false; pr.Parent = workspace
+        table.insert(AuraObjects.Prism, pr)
+    end
+end
+
+local function createFlameWings()
+    clearAuraType("FlameWings")
+    for i = 1, 10 do
+        fw = Instance.new("Part")
+        fw.Size = Vector3.new(0.4, 1.2, 0.4)
+        fw.Material = Enum.Material.Neon
+        fw.Color = Color3.fromRGB(255, 80, 0)
+        fw.Anchored = true; fw.CanCollide = false; fw.Parent = workspace
+        table.insert(AuraObjects.FlameWings, fw)
+    end
+end
+
+local function createIceSpikes()
+    clearAuraType("IceSpikes")
+    for i = 1, 6 do
+        local is = Instance.new("Part")
+        is.Size = Vector3.new(0.5, 2.5, 0.5)
+        is.Material = Enum.Material.Neon
+        is.Color = Color3.fromRGB(100, 220, 255)
+        is.Anchored = true; is.CanCollide = false; is.Parent = workspace
+        table.insert(AuraObjects.IceSpikes, is)
+    end
+end
+
+local function createToxic()
+    clearAuraType("Toxic")
+    for i = 1, 7 do
+        local tx = Instance.new("Part")
+        tx.Shape = Enum.PartType.Ball
+        tx.Size = Vector3.new(0.7, 0.7, 0.7)
+        tx.Material = Enum.Material.Neon
+        tx.Color = Color3.fromRGB(120, 255, 0)
+        tx.Anchored = true; tx.CanCollide = false; tx.Parent = workspace
+        table.insert(AuraObjects.Toxic, tx)
+    end
+end
+
+local function createShadows()
+    clearAuraType("Shadows")
+    for i = 1, 6 do
+        local sh = Instance.new("Part")
+        sh.Shape = Enum.PartType.Ball
+        sh.Size = Vector3.new(0.8, 0.8, 0.8)
+        sh.Material = Enum.Material.Neon
+        sh.Color = Color3.fromRGB(20, 20, 20)
+        sh.Anchored = true; sh.CanCollide = false; sh.Parent = workspace
+        table.insert(AuraObjects.Shadows, sh)
+    end
+end
+
+local function createStars()
+    clearAuraType("Stars")
+    for i = 1, 8 do
+        local st = Instance.new("Part")
+        st.Shape = Enum.PartType.Ball
+        st.Size = Vector3.new(0.4, 0.4, 0.4)
+        st.Material = Enum.Material.Neon
+        st.Color = Color3.fromRGB(255, 255, 100)
+        st.Anchored = true; st.CanCollide = false; st.Parent = workspace
+        table.insert(AuraObjects.Stars, st)
+    end
+end
+
+local function createSupernova()
+    clearAuraType("Supernova")
+    local sn = Instance.new("Part")
+    sn.Shape = Enum.PartType.Ball
+    sn.Size = Vector3.new(3, 3, 3)
+    sn.Material = Enum.Material.Neon
+    sn.Color = Color3.fromRGB(255, 100, 200)
+    sn.Transparency = 0.3
+    sn.Anchored = true; sn.CanCollide = false; sn.Parent = workspace
+    table.insert(AuraObjects.Supernova, sn)
+end
+
+-- Создание тумблеров для 30 аур
+ExtraAuraGroup:CreateToggle({ Name = "Angel/Demon Wings", CurrentValue = false, Callback = function(v) WingsEnabled = v; if v then createWings() else clearAuraType("Wings") end end }, "EXTRA_WINGS")
+ExtraAuraGroup:CreateToggle({ Name = "Floating Swords", CurrentValue = false, Callback = function(v) SwordsEnabled = v; if v then createSwords() else clearAuraType("Swords") end end }, "EXTRA_SWORDS")
+ExtraAuraGroup:CreateToggle({ Name = "Matrix Rain", CurrentValue = false, Callback = function(v) MatrixEnabled = v; if v then createMatrix() else clearAuraType("Matrix") end end }, "EXTRA_MATRIX")
+ExtraAuraGroup:CreateToggle({ Name = "Void Sphere", CurrentValue = false, Callback = function(v) VoidEnabled = v; if v then createVoid() else clearAuraType("Void") end end }, "EXTRA_VOID")
+ExtraAuraGroup:CreateToggle({ Name = "Electric Shield", CurrentValue = false, Callback = function(v) ShieldEnabled = v; if v then createShield() else clearAuraType("Shield") end end }, "EXTRA_SHIELD")
+ExtraAuraGroup:CreateToggle({ Name = "Crystal Shards", CurrentValue = false, Callback = function(v) CrystalsEnabled = v; if v then createCrystals() else clearAuraType("Crystals") end end }, "EXTRA_CRYSTALS")
+ExtraAuraGroup:CreateToggle({ Name = "Hologram Scanner", CurrentValue = false, Callback = function(v) HologramEnabled = v; if v then createHologram() else clearAuraType("Hologram") end end }, "EXTRA_HOLO")
+ExtraAuraGroup:CreateToggle({ Name = "Floating Books", CurrentValue = false, Callback = function(v) BooksEnabled = v; if v then createBooks() else clearAuraType("Books") end end }, "EXTRA_BOOKS")
+ExtraAuraGroup:CreateToggle({ Name = "Golden Crown", CurrentValue = false, Callback = function(v) CrownEnabled = v; if v then createCrown() else clearAuraType("Crown") end end }, "EXTRA_CROWN")
+ExtraAuraGroup:CreateToggle({ Name = "Butterfly Swarm", CurrentValue = false, Callback = function(v) ButterfliesEnabled = v; if v then createButterflies() else clearAuraType("Butterflies") end end }, "EXTRA_BUTTERFLIES")
+ExtraAuraGroup:CreateToggle({ Name = "Soul Flames", CurrentValue = false, Callback = function(v) SoulsEnabled = v; if v then createSouls() else clearAuraType("Souls") end end }, "EXTRA_SOULS")
+ExtraAuraGroup:CreateToggle({ Name = "Cyber Floor Grid", CurrentValue = false, Callback = function(v) GridEnabled = v; if v then createGrid() else clearAuraType("Grid") end end }, "EXTRA_GRID")
+ExtraAuraGroup:CreateToggle({ Name = "Bubble Sphere", CurrentValue = false, Callback = function(v) BubblesEnabled = v; if v then createBubbles() else clearAuraType("Bubbles") end end }, "EXTRA_BUBBLES")
+ExtraAuraGroup:CreateToggle({ Name = "Laser Cage", CurrentValue = false, Callback = function(v) CageEnabled = v; if v then createCage() else clearAuraType("Cage") end end }, "EXTRA_CAGE")
+ExtraAuraGroup:CreateToggle({ Name = "Radioactive Core", CurrentValue = false, Callback = function(v) RadioactiveEnabled = v; if v then createRadioactive() else clearAuraType("Radioactive") end end }, "EXTRA_RADIOACTIVE")
+ExtraAuraGroup:CreateToggle({ Name = "Cosmic Dust", CurrentValue = false, Callback = function(v) CosmicEnabled = v; if v then createCosmic() else clearAuraType("Cosmic") end end }, "EXTRA_COSMIC")
+ExtraAuraGroup:CreateToggle({ Name = "Galaxy Ring", CurrentValue = false, Callback = function(v) GalaxyEnabled = v; if v then createGalaxy() else clearAuraType("Galaxy") end end }, "EXTRA_GALAXY")
+ExtraAuraGroup:CreateToggle({ Name = "Blood Mist", CurrentValue = false, Callback = function(v) BloodEnabled = v; if v then createBlood() else clearAuraType("Blood") end end }, "EXTRA_BLOOD")
+ExtraAuraGroup:CreateToggle({ Name = "Feather Fall", CurrentValue = false, Callback = function(v) FeathersEnabled = v; if v then createFeathers() else clearAuraType("Feathers") end end }, "EXTRA_FEATHERS")
+ExtraAuraGroup:CreateToggle({ Name = "Rune Circle", CurrentValue = false, Callback = function(v) RunesEnabled = v; if v then createRunes() else clearAuraType("Runes") end end }, "EXTRA_RUNES")
+ExtraAuraGroup:CreateToggle({ Name = "Floating Daggers", CurrentValue = false, Callback = function(v) DaggersEnabled = v; if v then createDaggers() else clearAuraType("Daggers") end end }, "EXTRA_DAGGERS")
+ExtraAuraGroup:CreateToggle({ Name = "Shockwave Rings", CurrentValue = false, Callback = function(v) ShockwaveEnabled = v; if v then createShockwave() else clearAuraType("Shockwave") end end }, "EXTRA_SHOCKWAVE")
+ExtraAuraGroup:CreateToggle({ Name = "Ghostly Smoke", CurrentValue = false, Callback = function(v) SmokeEnabled = v; if v then createSmoke() else clearAuraType("Smoke") end end }, "EXTRA_SMOKE")
+ExtraAuraGroup:CreateToggle({ Name = "Prism Shards", CurrentValue = false, Callback = function(v) PrismEnabled = v; if v then createPrism() else clearAuraType("Prism") end end }, "EXTRA_PRISM")
+ExtraAuraGroup:CreateToggle({ Name = "Flame Wings", CurrentValue = false, Callback = function(v) FlameWingsEnabled = v; if v then createFlameWings() else clearAuraType("FlameWings") end end }, "EXTRA_FLAMEWINGS")
+ExtraAuraGroup:CreateToggle({ Name = "Ice Spikes", CurrentValue = false, Callback = function(v) IceSpikesEnabled = v; if v then createIceSpikes() else clearAuraType("IceSpikes") end end }, "EXTRA_ICESPIKES")
+ExtraAuraGroup:CreateToggle({ Name = "Toxic Slime", CurrentValue = false, Callback = function(v) ToxicEnabled = v; if v then createToxic() else clearAuraType("Toxic") end end }, "EXTRA_TOXIC")
+ExtraAuraGroup:CreateToggle({ Name = "Shadow Swarm", CurrentValue = false, Callback = function(v) ShadowsEnabled = v; if v then createShadows() else clearAuraType("Shadows") end end }, "EXTRA_SHADOWS")
+ExtraAuraGroup:CreateToggle({ Name = "Starry Canopy", CurrentValue = false, Callback = function(v) StarsEnabled = v; if v then createStars() else clearAuraType("Stars") end end }, "EXTRA_STARS")
+ExtraAuraGroup:CreateToggle({ Name = "Supernova Pulse", CurrentValue = false, Callback = function(v) SupernovaEnabled = v; if v then createSupernova() else clearAuraType("Supernova") end end }, "EXTRA_SUPERNOVA")
+
+
+-- ЕДИНЫЙ ЦИКЛ ОБНОВЛЕНИЯ ВСЕХ АУР
+local auraAngle = 0
+track(RunService.RenderStepped:Connect(function(dt)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local head = char:FindFirstChild("Head")
+    if not root then return end
+
+    auraAngle = auraAngle + dt  
+
+    -- Базовые ауры обновление
+    if ChinaHatEnabled and head then  
+        local hat = AuraObjects.ChinaHat[1]  
+        if hat and hat.Parent then  
+            local yOffset = 1.2 + math.sin(auraAngle * 2) * 0.05  
+            local rotOffset = math.sin(auraAngle) * 5  
+            hat.CFrame = CFrame.new(head.Position + Vector3.new(0, yOffset, 0)) * CFrame.Angles(0, math.rad(rotOffset), 0)  
+        end  
+    end  
+
+    if OrbsEnabled then  
+        for i, orb in ipairs(AuraObjects.Orbs) do  
+            if orb and orb.Parent then  
+                local a = auraAngle * 2 + (i-1) * (math.pi * 2 / 5)  
+                orb.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a) * 4, math.sin(auraAngle * 2 + i) * 1.5, math.sin(a) * 4))  
+                local hue = (a / (math.pi * 2)) % 1  
+                orb.Color = Color3.fromHSV(hue, 0.8, 1)  
+                if orb:FindFirstChild("PointLight") then orb.PointLight.Color = orb.Color end  
+            end  
+        end  
+    end  
+
+    if RingEnabled and head then  
+        local basePos = head.Position + Vector3.new(0, 2.5, 0)  
+        for i, part in ipairs(AuraObjects.Ring) do  
+            if part and part.Parent then  
+                local a = auraAngle * 3 + (i-1) * (math.pi * 2 / 12)  
+                part.CFrame = CFrame.new(basePos + Vector3.new(math.cos(a) * 2.5, 0, math.sin(a) * 2.5))  
+            end  
+        end  
+    end  
+
+    if GroundEnabled then  
+        for _, disk in ipairs(AuraObjects.Ground) do  
+            if disk and disk.Parent then  
+                disk.CFrame = CFrame.new(root.Position + Vector3.new(0, -2.8, 0)) * CFrame.Angles(math.rad(90), 0, 0) * CFrame.Angles(0, auraAngle, 0)  
+            end  
+        end  
+    end  
+
+    if IceEnabled then  
+        for i, shard in ipairs(AuraObjects.Ice) do  
+            if shard and shard.Parent then  
+                local a = auraAngle * 1.5 + (i-1) * (math.pi * 2 / 6)  
+                shard.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a) * 3, math.sin(auraAngle*3 + i)*0.5, math.sin(a) * 3)) * CFrame.Angles(0, a, math.rad(20))  
+            end  
+        end  
+    end  
+
+    if BeamEnabled then  
+        for _, beam in ipairs(AuraObjects.Beam) do  
+            if beam and beam.Parent then  
+                beam.CFrame = CFrame.new(root.Position + Vector3.new(0, 28, 0)) * CFrame.Angles(0, 0, math.rad(90))  
+            end  
+        end  
+    end  
+
+    if TornadoEnabled then  
+        for _, part in ipairs(AuraObjects.Tornado) do  
+            if part and part.Parent then  
+                part.CFrame = CFrame.new(root.Position + Vector3.new(0, 2, 0)) * CFrame.Angles(0, auraAngle * 5, 0)  
+            end  
+        end  
+    end  
+
+    if DarkMatterEnabled then  
+        for i, orb in ipairs(AuraObjects.DarkMatter) do  
+            if orb and orb.Parent then  
+                local a = -auraAngle * 4 + (i-1) * (math.pi * 2 / 6)  
+                orb.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a) * 3.5, math.sin(auraAngle * 3 + i) * 2, math.sin(a) * 3.5))  
+            end  
+        end  
+    end  
+
+    if LightningEnabled then  
+        for _, spark in ipairs(AuraObjects.Lightning) do  
+            if spark and spark.Parent then  
+                if math.random() > 0.9 then  
+                    local offset = Vector3.new(math.random(-4,4), math.random(0,5), math.random(-4,4))  
+                    spark.CFrame = CFrame.new(root.Position + offset)  
+                end  
+            end  
+        end  
+    end
+
+    -- Обновление 30 новых аур
+    if WingsEnabled then
+        for i, wp in ipairs(AuraObjects.Wings) do
+            if wp and wp.Parent then
+                local side = i <= 4 and -1 or 1
+                local offset = Vector3.new(side * (1.2 + (i%4)*0.4), math.sin(auraAngle*3 + i)*0.3, -0.5)
+                wp.CFrame = root.CFrame * CFrame.new(offset) * CFrame.Angles(0, 0, side * math.rad(30))
+            end
+        end
+    end
+
+    if SwordsEnabled then
+        for i, sw in ipairs(AuraObjects.Swords) do
+            if sw and sw.Parent then
+                local a = auraAngle * 4 + (i-1)*(math.pi/2)
+                sw.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, 2, math.sin(a)*3)) * CFrame.Angles(0, -a, math.rad(45))
+            end
+        end
+    end
+
+    if MatrixEnabled then
+        for i, m in ipairs(AuraObjects.Matrix) do
+            if m and m.Parent then
+                local pos = root.Position + Vector3.new(math.sin(i + auraAngle*2)*3, (i*0.8 - 3 + auraAngle*5)%6 - 3, math.cos(i + auraAngle*2)*3)
+                m.CFrame = CFrame.new(pos)
+            end
+        end
+    end
+
+    if VoidEnabled then
+        for _, v in ipairs(AuraObjects.Void) do
+            if v and v.Parent then
+                local s = 4 + math.sin(auraAngle*2)*1
+                v.Size = Vector3.new(s, s, s)
+                v.CFrame = root.CFrame
+            end
+        end
+    end
+
+    if ShieldEnabled then
+        for _, s in ipairs(AuraObjects.Shield) do
+            if s and s.Parent then
+                s.CFrame = root.CFream or root.CFrame
+            end
+        end
+    end
+
+    if CrystalsEnabled then
+        for i, cr in ipairs(AuraObjects.Crystals) do
+            if cr and cr.Parent then
+                local a = auraAngle * 2 + (i-1)*(math.pi/3)
+                cr.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2.5, math.sin(auraAngle*3 + i)*1, math.sin(a)*2.5)) * CFrame.Angles(auraAngle, auraAngle, 0)
+            end
+        end
+    end
+
+    if HologramEnabled then
+        for _, h in ipairs(AuraObjects.Hologram) do
+            if h and h.Parent then
+                local y = math.sin(auraAngle*3) * 2
+                h.CFrame = CFrame.new(root.Position + Vector3.new(0, y, 0)) * CFrame.Angles(math.rad(90), 0, 0)
+            end
+        end
+    end
+
+    if BooksEnabled then
+        for i, bk in ipairs(AuraObjects.Books) do
+            if bk and bk.Parent then
+                local a = auraAngle * 1.5 + (i-1)*(math.pi*2/3)
+                bk.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, 1 + math.sin(auraAngle*2 + i)*0.5, math.sin(a)*3)) * CFrame.Angles(0, -a, math.rad(15))
+            end
+        end
+    end
+
+    if CrownEnabled and head then
+        for _, crn in ipairs(AuraObjects.Crown) do
+            if crn and crn.Parent then
+                crn.CFrame = CFrame.new(head.Position + Vector3.new(0, 1.3, 0)) * CFrame.Angles(0, auraAngle, 0)
+            end
+        end
+    end
+
+    if ButterfliesEnabled then
+        for i, b in ipairs(AuraObjects.Butterflies) do
+            if b and b.Parent then
+                local a = auraAngle * 3 + i
+                b.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2.5, math.sin(auraAngle*4 + i)*1.5, math.sin(a)*2.5)) * CFrame.Angles(0, a, math.sin(auraAngle*10)*0.5)
+            end
+        end
+    end
+
+    if SoulsEnabled then
+        for i, s in ipairs(AuraObjects.Souls) do
+            if s and s.Parent then
+                local a = auraAngle + (i-1)*(math.pi*2/5)
+                s.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2, math.sin(auraAngle*2 + i)*2, math.sin(a)*2))
+            end
+        end
+    end
+
+    if GridEnabled then
+        for _, g in ipairs(AuraObjects.Grid) do
+            if g and g.Parent then
+                g.CFrame = CFrame.new(root.Position + Vector3.new(0, -2.8, 0)) * CFrame.Angles(0, auraAngle, 0)
+            end
+        end
+    end
+
+    if BubblesEnabled then
+        for i, bub in ipairs(AuraObjects.Bubbles) do
+            if bub and bub.Parent then
+                local a = auraAngle + i
+                bub.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2, (math.sin(auraAngle*2 + i)+1)*2, math.sin(a)*2))
+            end
+        end
+    end
+
+    if CageEnabled then
+        for i, c in ipairs(AuraObjects.Cage) do
+            if c and c.Parent then
+                local a = (i-1)*(math.pi*2/6) + auraAngle
+                c.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, 0, math.sin(a)*3))
+            end
+        end
+    end
+
+    if RadioactiveEnabled then
+        for i, r in ipairs(AuraObjects.Radioactive) do
+            if r and r.Parent then
+                r.CFrame = CFrame.new(root.Position + Vector3.new(0, -2.5 + i*0.2, 0)) * CFrame.Angles(0, auraAngle * (i%2==0 and 2 or -2), 0)
+            end
+        end
+    end
+
+    if CosmicEnabled then
+        for i, st in ipairs(AuraObjects.Cosmic) do
+            if st and st.Parent then
+                local a = auraAngle * 2 + i
+                st.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3.5, math.sin(i*2 + auraAngle)*2, math.sin(a)*3.5))
+            end
+        end
+    end
+
+    if GalaxyEnabled then
+        for i, gal in ipairs(AuraObjects.Galaxy) do
+            if gal and gal.Parent then
+                local a = auraAngle * 3 + (i-1)*(math.pi*2/10)
+                gal.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*4, math.sin(auraAngle)*0.5, math.sin(a)*4)) * CFrame.Angles(0, a, math.rad(45))
+            end
+        end
+    end
+
+    if BloodEnabled then
+        for i, bl in ipairs(AuraObjects.Blood) do
+            if bl and bl.Parent then
+                local a = auraAngle * 2 + i
+                bl.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2, math.abs(math.sin(auraAngle*5 + i))*3, math.sin(a)*2))
+            end
+        end
+    end
+
+    if FeathersEnabled then
+        for i, f in ipairs(AuraObjects.Feathers) do
+            if f and f.Parent then
+                local a = auraAngle + i
+                f.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2.5, 3 - ((auraAngle*3 + i*0.5)%5), math.sin(a)*2.5)) * CFrame.Angles(auraAngle, a, 0)
+            end
+        end
+    end
+
+    if RunesEnabled then
+        for i, r in ipairs(AuraObjects.Runes) do
+            if r and r.Parent then
+                local a = (i-1)*(math.pi/2) - auraAngle
+                r.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, -2.7, math.sin(a)*3)) * CFrame.Angles(0, a, 0)
+            end
+        end
+    end
+
+    if DaggersEnabled then
+        for i, dag in ipairs(AuraObjects.Daggers) do
+            if dag and dag.Parent then
+                local a = auraAngle * 4 + (i-1)*(math.pi*2/6)
+                dag.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3.5, 1, math.sin(a)*3.5)) * CFrame.Angles(0, -a, math.rad(90))
+            end
+        end
+    end
+
+    if ShockwaveEnabled then
+        for i, sw in ipairs(AuraObjects.Shockwave) do
+            if sw and sw.Parent then
+                local scale = ((auraAngle * 3 + i * 1.5) % 5) * 2
+                sw.Size = Vector3.new(0.1, scale, scale)
+                sw.CFrame = CFrame.new(root.Position + Vector3.new(0, -2.7, 0)) * CFrame.Angles(math.rad(90), 0, 0)
+            end
+        end
+    end
+
+    if SmokeEnabled then
+        for i, sm in ipairs(AuraObjects.Smoke) do
+            if sm and sm.Parent then
+                local a = auraAngle + i
+                sm.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*1.5, (auraAngle*2 + i)%4, math.sin(a)*1.5))
+            end
+        end
+    end
+
+    if PrismEnabled then
+        for i, pr in ipairs(AuraObjects.Prism) do
+            if pr and pr.Parent then
+                local a = auraAngle * 2 + (i-1)*(math.pi*2/5)
+                pr.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, math.sin(auraAngle*3)*1, math.sin(a)*3)) * CFrame.Angles(auraAngle, auraAngle, auraAngle)
+            end
+        end
+    end
+
+    if FlameWingsEnabled then
+        for i, fw in ipairs(AuraObjects.FlameWings) do
+            if fw and fw.Parent then
+                local side = i <= 5 and -1 or 1
+                fw.CFrame = root.CFrame * CFrame.new(side * (1 + (i%5)*0.3), math.sin(auraAngle*4)*0.2, -0.3) * CFrame.Angles(0, 0, side * math.rad(45))
+            end
+        end
+    end
+
+    if IceSpikesEnabled then
+        for i, is in ipairs(AuraObjects.IceSpikes) do
+            if is and is.Parent then
+                local a = (i-1)*(math.pi*2/6)
+                is.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, -2 + math.sin(auraAngle*4 + i)*0.5, math.sin(a)*3)) * CFrame.Angles(0, a, 0)
+            end
+        end
+    end
+
+    if ToxicEnabled then
+        for i, tx in ipairs(AuraObjects.Toxic) do
+            if tx and tx.Parent then
+                local a = auraAngle * 3 + i
+                tx.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*2, math.sin(auraAngle*4 + i)*1, math.sin(a)*2))
+            end
+        end
+    end
+
+    if ShadowsEnabled then
+        for i, sh in ipairs(AuraObjects.Shadows) do
+            if sh and sh.Parent then
+                local a = -auraAngle * 2 + (i-1)*(math.pi*2/6)
+                sh.CFrame = CFrame.new(root.Position + Vector3.new(math.cos(a)*3, 0.5, math.sin(a)*3))
+            end
+        end
+    end
+
+    if StarsEnabled and head then
+        for i, st in ipairs(AuraObjects.Stars) do
+            if st and st.Parent then
+                local a = auraAngle * 2 + (i-1)*(math.pi*2/8)
+                st.CFrame = CFrame.new(head.Position + Vector3.new(math.cos(a)*2, 2.5, math.sin(a)*2))
+            end
+        end
+    end
+
+    if SupernovaEnabled then
+        for _, sn in ipairs(AuraObjects.Supernova) do
+            if sn and sn.Parent then
+                local p = 3 + math.sin(auraAngle * 6) * 0.8
+                sn.Size = Vector3.new(p, p, p)
+                sn.CFrame = root.CFrame
+            end
+        end
+    end
+end))
+
+-- Перезапуск аур при респавне
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    -- Базовые
+    if OrbsEnabled then createOrbitOrbs() end
+    if RingEnabled then createHaloRing() end
+    if GroundEnabled then createGroundAura() end
+    if FireEnabled then createFireAura() end
+    if IceEnabled then createIceAura() end
+    if BeamEnabled then createBeamAura() end
+    if PetalsEnabled then createPetalsAura() end
+    if TornadoEnabled then createTornadoAura() end
+    if DarkMatterEnabled then createDarkMatter() end
+    if LightningEnabled then createLightningAura() end
+    if TrailEnabled then createRainbowTrail() end
+    if ChinaHatEnabled then createChinaHat() end
+    -- Новые 30
+    if WingsEnabled then createWings() end
+    if SwordsEnabled then createSwords() end
+    if MatrixEnabled then createMatrix() end
+    if VoidEnabled then createVoid() end
+    if ShieldEnabled then createShield() end
+    if CrystalsEnabled then createCrystals() end
+    if HologramEnabled then createHologram() end
+    if BooksEnabled then createBooks() end
+    if CrownEnabled then createCrown() end
+    if ButterfliesEnabled then createButterflies() end
+    if SoulsEnabled then createSouls() end
+    if GridEnabled then createGrid() end
+    if BubblesEnabled then createBubbles() end
+    if CageEnabled then createCage() end
+    if RadioactiveEnabled then createRadioactive() end
+    if CosmicEnabled then createCosmic() end
+    if GalaxyEnabled then createGalaxy() end
+    if BloodEnabled then createBlood() end
+    if FeathersEnabled then createFeathers() end
+    if RunesEnabled then createRunes() end
+    if DaggersEnabled then createDaggers() end
+    if ShockwaveEnabled then createShockwave() end
+    if SmokeEnabled then createSmoke() end
+    if PrismEnabled then createPrism() end
+    if FlameWingsEnabled then createFlameWings() end
+    if IceSpikesEnabled then createIceSpikes() end
+    if ToxicEnabled then createToxic() end
+    if ShadowsEnabled then createShadows() end
+    if StarsEnabled then createStars() end
+    if SupernovaEnabled then createSupernova() end
+end)
+
+-- ===================== COMBAT =====================
+local MurderGroup = CombatTab:CreateGroupbox({ Name = "Murder", Column = 1, Icon = NebulaIcons:GetIcon('skull', 'Lucide') }, "MURDER_GROUP")
+MurderGroup:CreateToggle({ Name = "Kill Aura", CurrentValue = false, Callback = function(v) KillAura = v end }, "COMBAT_KILLAURA")
+MurderGroup:CreateSlider({ Name = "Aura Radius", Range = {8, 45}, Increment = 1, CurrentValue = 18, Callback = function(v) KillAuraRadius = v end }, "COMBAT_AURARAD")
+MurderGroup:CreateToggle({ Name = "Auto Knife", CurrentValue = false, Callback = function(v) AutoKnife = v end }, "COMBAT_AUTOKNIFE")
+MurderGroup:CreateToggle({ Name = "Auto Equip Knife", CurrentValue = false, Callback = function(v) AutoEquipKnife = v end }, "COMBAT_EQUIP")
+MurderGroup:CreateToggle({ Name = "Face Target", CurrentValue = false, Callback = function(v) FaceTarget = v end }, "COMBAT_FACE")
+MurderGroup:CreateToggle({ Name = "Kill All", CurrentValue = false, Callback = function(v) KillAll = v end }, "COMBAT_KILLALL")
+
+local SheriffGroup = CombatTab:CreateGroupbox({ Name = "Sheriff", Column = 2, Icon = NebulaIcons:GetIcon('target', 'Lucide') }, "SHERIFF_GROUP")
+SheriffGroup:CreateToggle({ Name = "Silent Aim", CurrentValue = false, Callback = function(v) GunSilentAim = v end }, "COMBAT_SILENT")
+SheriffGroup:CreateSlider({ Name = "Smooth", Range = {5, 100}, Increment = 1, CurrentValue = 35, Callback = function(v) GunSmooth = v end }, "COMBAT_SMOOTH")
+SheriffGroup:CreateToggle({ Name = "Triggerbot", CurrentValue = false, Callback = function(v) Triggerbot = v end }, "COMBAT_TRIGGER")
+SheriffGroup:CreateToggle({ Name = "Auto Grab Gun", CurrentValue = false, Callback = function(v) AutoGrabGun = v end }, "COMBAT_GRAB")
+SheriffGroup:CreateToggle({ Name = "Auto Kill Murderer", CurrentValue = false, Callback = function(v) AutoKillMurderer = v end }, "COMBAT_KILLMURD")
+
+-- ===================== ЛОГИКА COMBAT & ESP =====================
+local function getKnife()
+    local char = LocalPlayer.Character; if not char then return nil end
+    return char:FindFirstChild("Knife") or (LocalPlayer:FindFirstChild("Backpack") and LocalPlayer.Backpack:FindFirstChild("Knife"))
+end
+local function isMurderer(plr)
+    if not plr.Character then return false end
+    return plr.Character:FindFirstChild("Knife") or (plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild("Knife"))
+end
+
+track(RunService.Heartbeat:Connect(function()
+    local char = LocalPlayer.Character; if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart"); local hum = char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+    if AutoEquipKnife then
+        local knife = getKnife()
+        if knife and knife.Parent == LocalPlayer.Backpack then hum:EquipTool(knife) end
+    end
+    local knife = char:FindFirstChild("Knife")
+    if not knife then return end
+    if KillAura or KillAll then
+        local radius = KillAll and 90 or KillAuraRadius
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character then
+                local tRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+                local tHum = plr.Character:FindFirstChildOfClass("Humanoid")
+                if tRoot and tHum and tHum.Health > 0 and (tRoot.Position - root.Position).Magnitude <= radius then
+                    if FaceTarget then root.CFrame = CFrame.lookAt(root.Position, tRoot.Position) end
+                    knife:Activate()
+                end
+            end
+        end
+    end
+    if AutoKnife then knife:Activate() end
+end))
+
+track(RunService.RenderStepped:Connect(function()
+    if AutoGrabGun then
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj.Name == "Gun" and obj:IsA("Tool") then
+                local handle = obj:FindFirstChild("Handle")
+                local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if handle and myRoot and (handle.Position - myRoot.Position).Magnitude < 20 then obj.Parent = LocalPlayer.Backpack end
+            end
+        end
+    end
+    local gun = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")
+    if not gun or not (GunSilentAim or Triggerbot or AutoKillMurderer) then return end
+    local target = nil
+    if AutoKillMurderer then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and isMurderer(plr) then
+                local tHum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+                if tHum and tHum.Health > 0 then target = plr; break end
+            end
+        end
+    else
+        local closest, closestDist = nil, 250
+        local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if myRoot then
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    local tRoot = plr.Character:FindFirstChild("HumanoidRootPart"); local tHum = plr.Character:FindFirstChildOfClass("Humanoid")
+                    if tRoot and tHum and tHum.Health > 0 then
+                        local dist = (tRoot.Position - myRoot.Position).Magnitude
+                        if dist < closestDist then closest = plr; closestDist = dist end
+                    end
+                end
+            end
+        end
+        target = closest
+    end
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        local tp = target.Character.HumanoidRootPart.Position + Vector3.new(0, 2, 0)
+        if GunSilentAim or AutoKillMurderer then
+            local camCF = Camera.CFrame
+            Camera.CFrame = camCF:Lerp(CFrame.new(camCF.Position, tp), math.clamp(GunSmooth / 100, 0.05, 1))
+        end
+        if Triggerbot or AutoKillMurderer then gun:Activate() end
+    end
+end))
+
+local function getRole(plr)
+    if not plr.Character then return "Dead" end
+    local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return "Dead" end
+    local bp = plr:FindFirstChild("Backpack")
+    if plr.Character:FindFirstChild("Knife") or (bp and bp:FindFirstChild("Knife")) then return "Murderer" end
+    if plr.Character:FindFirstChild("Gun") or (bp and bp:FindFirstChild("Gun")) then return "Sheriff" end
+    return "Innocent"
+end
+
+local function buildLabel(plr, role, dist)
+    local lines = {}
+    if ShowName then table.insert(lines, plr.Name) end
+    local info = {}
+    if ShowRole then table.insert(info, "[" .. role .. "]") end
+    if ShowDistance then table.insert(info, dist .. "m") end
+    if #info > 0 then table.insert(lines, table.concat(info, " ")) end
+    if #lines == 0 then return "" end
+    return table.concat(lines, "\n")
+end
+
+local function clearESP(plr)
+    local d = PlayerData[plr]; if not d then return end
+    pcall(function()
+        if d.highlight then d.highlight:Destroy() end
+        if d.billboard then d.billboard:Destroy() end
+        for _, k in ipairs({"boxTop","boxBottom","boxLeft","boxRight","tracer"}) do if d[k] then d[k]:Remove() end end
+    end)
+    PlayerData[plr] = nil
+end
+
+local hasDrawing = pcall(function() local d = Drawing.new("Line"); d:Remove() end)
+
+local function createESP(char, root)
+    local hl = Instance.new("Highlight")
+    hl.FillTransparency = 0.5; hl.OutlineTransparency = 0.15; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; hl.Adornee = char; hl.Parent = char
+    local bb = Instance.new("BillboardGui")
+    bb.Size = UDim2.new(0, 170, 0, 58); bb.StudsOffset = Vector3.new(0, 3.4, 0); bb.AlwaysOnTop = true; bb.Adornee = root; bb.Parent = char
+    local list = Instance.new("UIListLayout", bb); list.SortOrder = Enum.SortOrder.LayoutOrder; list.HorizontalAlignment = Enum.HorizontalAlignment.Center; list.Padding = UDim.new(0, 2)
+    local hpBg = Instance.new("Frame", bb); hpBg.LayoutOrder = 1; hpBg.Size = UDim2.new(0.9, 0, 0, 8); hpBg.BackgroundColor3 = Color3.fromRGB(30, 30, 30); hpBg.BorderSizePixel = 0; hpBg.Visible = false; Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 3)
+    local hpFill = Instance.new("Frame", hpBg); hpFill.Size = UDim2.new(1, 0, 1, 0); hpFill.BackgroundColor3 = Color3.fromRGB(50, 255, 100); hpFill.BorderSizePixel = 0; Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 3)
+    local lab = Instance.new("TextLabel", bb); lab.LayoutOrder = 2; lab.Size = UDim2.new(1, 0, 0, 42); lab.BackgroundTransparency = 1; lab.Font = Enum.Font.GothamBold; lab.TextSize = 13; lab.TextStrokeTransparency = 0.35
+    local data = { highlight = hl, billboard = bb, label = lab, hpBg = hpBg, hpFill = hpFill }
+    if hasDrawing then
+        for _, k in ipairs({"boxTop","boxBottom","boxLeft","boxRight","tracer"}) do
+            local line = Drawing.new("Line"); line.Thickness = 1; line.Visible = false; data[k] = line
+        end
+    end
+    return data
+end
+
+track(RunService.RenderStepped:Connect(function()
+    if not ESPEnabled then return end
+    RainbowHue = (RainbowHue + 0.005) % 1
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local char = plr.Character; local root = char and char:FindFirstChild("HumanoidRootPart"); local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if not root or not hum or hum.Health <= 0 then clearESP(plr) else
+                local role = getRole(plr); local color = RainbowEnabled and Color3.fromHSV(RainbowHue, 0.9, 1) or Colors[role]
+                local dist = 0; local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart"); if myRoot then dist = math.floor((root.Position - myRoot.Position).Magnitude) end
+                local d = PlayerData[plr]
+                if d and d.highlight and d.highlight.Parent ~= char then clearESP(plr); d = nil end
+                if not d then PlayerData[plr] = createESP(char, root); d = PlayerData[plr] end
+                if d.highlight then d.highlight.FillColor = color; d.highlight.OutlineColor = color end
+                if d.label then d.label.Text = buildLabel(plr, role, dist); d.label.TextColor3 = color end
+                if d.hpBg then
+                    d.hpBg.Visible = HPBarEnabled
+                    if HPBarEnabled then
+                        local pct = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+                        d.hpFill.Size = UDim2.new(pct, 0, 1, 0); d.hpFill.BackgroundColor3 = Color3.fromRGB(math.floor(255 * (1 - pct)), math.floor(255 * pct), 60)
+                    end
+                end
+                if d.boxTop then
+                    if BoxESPEnabled then
+                        local hs, hon = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 3, 0)); local fs, fon = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+                        if hon and fon then
+                            local hh = math.abs(hs.Y - fs.Y); local ww = hh * 0.6; local cx = (hs.X + fs.X) / 2; local tp = math.min(hs.Y, fs.Y); local bt = math.max(hs.Y, fs.Y)
+                            d.boxTop.From = Vector2.new(cx - ww/2, tp); d.boxTop.To = Vector2.new(cx + ww/2, tp); d.boxBottom.From = Vector2.new(cx - ww/2, bt); d.boxBottom.To = Vector2.new(cx + ww/2, bt)
+                            d.boxLeft.From = Vector2.new(cx - ww/2, tp); d.boxLeft.To = Vector2.new(cx - ww/2, bt); d.boxRight.From = Vector2.new(cx + ww/2, tp); d.boxRight.To = Vector2.new(cx + ww/2, bt)
+                            for _, k in ipairs({"boxTop","boxBottom","boxLeft","boxRight"}) do d[k].Color = color; d[k].Visible = true end
+                        else for _, k in ipairs({"boxTop","boxBottom","boxLeft","boxRight"}) do d[k].Visible = false end end
+                    else for _, k in ipairs({"boxTop","boxBottom","boxLeft","boxRight"}) do d[k].Visible = false end end
+                end
+                if d.tracer then
+                    if TracerEnabled then
+                        local scr, on = Camera:WorldToViewportPoint(root.Position)
+                        if on then
+                            d.tracer.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y); d.tracer.To = Vector2.new(scr.X, scr.Y); d.tracer.Color = color; d.tracer.Thickness = 1; d.tracer.Visible = true
+                        else d.tracer.Visible = false end
+                    else d.tracer.Visible = false end
+                end
+            end
+        end
+    end
+end))
+
+Players.PlayerRemoving:Connect(clearESP)
+
+safeNotify({
+    Title = "osiris.xd",
+    Content = "v8.2 успешно загружена со всеми 30 аурами!",
+    Duration = 3,
+})
+
+print("[osiris.xd] Loaded v8.2 with 30 Extra Visual Auras")
